@@ -19,13 +19,27 @@ const repoDir = process.env.MAKEFUN_BOT_DIR ?? '/bot';
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
 const postPath = join(repoDir, 'POST.json');
-const post = JSON.parse(readFileSync(postPath, 'utf8')) as { url?: unknown };
 
-if (typeof post.url !== 'string' || !/^https:\/\/(x\.com|twitter\.com)\/[^/]+\/status\/\d+$/.test(post.url)) {
+let post: { url?: unknown };
+try {
+  post = JSON.parse(readFileSync(postPath, 'utf8')) as { url?: unknown };
+} catch (err) {
+  console.error(`POST.json could not be read as JSON: ${(err as Error).message}`);
+  process.exit(1);
+}
+
+const match =
+  typeof post.url === 'string'
+    ? /^https:\/\/(x\.com|twitter\.com)\/([^/]+)\/status\/(\d+)$/.exec(post.url)
+    : null;
+
+if (!match) {
   console.error('POST.json must name a post: {"url": "https://x.com/<handle>/status/<id>"}');
   process.exit(1);
 }
 
+const [, , handle, statusId] = match;
+
 mkdirSync(outDir, { recursive: true });
 copyFileSync(postPath, join(outDir, 'POST.json'));
-console.log(`entry post: ${post.url}`);
+console.log(`entry post: @${handle} status ${statusId} (${post.url})`);
